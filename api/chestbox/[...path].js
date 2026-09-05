@@ -27,6 +27,8 @@ export default async function handler(req, res) {
   const search = req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : "";
   const target = `${base.replace(/\/$/, "")}/${segments.join("/")}${search}`;
 
+  console.log("[proxy] target:", target);
+
   try {
     const upstream = await fetch(target, {
       method: req.method,
