@@ -65,6 +65,35 @@ body {
 .brand-sub { margin: 0; font-size: 12px; color: var(--muted); }
 .topbar-right { display: flex; align-items: center; gap: 10px; }
 
+.treasury-chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 12px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  font-size: 12px;
+}
+.treasury-chip-label { color: var(--accent); font-weight: 600; letter-spacing: 0.02em; }
+.treasury-chip-value { font-family: var(--mono); font-weight: 700; color: var(--text); }
+.treasury-chip-btn {
+  appearance: none;
+  background: var(--accent);
+  border: none;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  width: 20px;
+  height: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+
 .pill {
   font-size: 11px;
   font-weight: 600;
@@ -348,4 +377,66 @@ dialog h2 { margin: 0 0 16px; font-size: 17px; }
   .row label { width: 100%; }
   input, select { width: 100%; }
   .card { flex-wrap: wrap; }
+}
+
+/* ── customer table ─────────────────────────────────────────── */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+  font-size: 14px;
+}
+.data-table th {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line, #2a2a33);
+  color: var(--muted, #8b8b96);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.data-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line, #23232b);
+  vertical-align: middle;
+}
+.data-table tbody tr:hover { background: rgba(255, 255, 255, 0.03); }
+.data-table .mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+}
+.data-table .detail-row td { background: rgba(255, 255, 255, 0.02); }
+.detail-box { padding: 4px 0 8px; }
+.detail-box .card-meta { margin-bottom: 8px; }
+
+/* The table scrolls on its own rather than pushing the page sideways. */
+#customer-table { overflow-x: auto; }
+
+.bulk-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin: 16px 0;
+}
+.bulk-label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.bulk-label input { min-width: 120px; }
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+}
+.pagination-info {
+  font-size: 13px;
+  color: var(--muted);
 }

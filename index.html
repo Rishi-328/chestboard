@@ -20,133 +20,67 @@
         </div>
       </div>
       <div class="topbar-right">
-        <span id="mode-pill" class="pill pill-stub">stubbed</span>
+        <div id="treasury-balance" class="treasury-chip">
+          <span class="treasury-chip-label">Treasury</span>
+          <span id="treasury-amount" class="treasury-chip-value">0</span>
+          <button id="open-treasury-credit" class="treasury-chip-btn" title="Credit treasury">+</button>
+        </div>
+        <button id="health-pill" class="pill pill-stub" title="Click to re-check">checking…</button>
         <button id="open-settings" class="btn btn-ghost">Settings</button>
       </div>
     </header>
 
     <nav class="tabs" role="tablist">
-      <button class="tab is-active" data-tab="treasuries" role="tab">Treasuries</button>
-      <button class="tab" data-tab="customer" role="tab">Customer</button>
-      <button class="tab" data-tab="history" role="tab">History</button>
+      <button class="tab is-active" data-tab="wallets" role="tab">Wallets</button>
+      <button class="tab" data-tab="history" role="tab">Ledger history</button>
     </nav>
 
     <main>
-      <!-- ── Treasuries ─────────────────────────────────────────────── -->
-      <section id="tab-treasuries" class="panel is-active">
-        <div class="panel-head">
-          <div>
-            <h2>Campaign treasuries</h2>
-            <p class="muted">
-              A treasury is a wallet row — merchant-owned, scoped to one campaign.
-              Awards are paid from the first one in priority order that can cover them.
-            </p>
-          </div>
+      <!-- ── Wallets ────────────────────────────────────────────────── -->
+      <section id="tab-wallets" class="panel is-active">
+        <div>
+          <button id="open-create-wallet" class="btn btn-primary">+ Create treasury</button>
         </div>
 
-        <form id="treasury-filter" class="row">
-          <label>Campaign<input name="campaignId" value="diwali" required /></label>
-          <label class="check"
-            ><input type="checkbox" name="includeDeleted" /> show deleted</label
-          >
-          <button class="btn">Load</button>
-        </form>
+        <div class="bulk-bar">
+          <label class="bulk-label">Amount
+            <input id="bulk-amount" type="number" min="1" value="100" />
+          </label>
+          <label class="bulk-label">Active from
+            <input id="bulk-active-at" type="datetime-local" required />
+          </label>
+<button id="bulk-credit-btn" class="btn btn-primary" disabled>Credit all customers</button>
+          <button id="bulk-debit-btn" class="btn btn-danger" disabled>Debit all customers</button>
+        </div>
 
-        <div id="treasury-list" class="stack"></div>
-
-        <details class="creator">
-          <summary>Add a treasury</summary>
-          <form id="treasury-create" class="row">
-            <label>Campaign<input name="campaignId" value="diwali" required /></label>
-            <label>Priority<input name="priority" type="number" min="1" value="1" required /></label>
-            <label
-              >Currency
-              <select name="currency">
-                <option>INR</option><option>USD</option><option>GBP</option>
-                <option>AED</option><option>SGD</option><option>AUD</option>
-              </select>
-            </label>
-            <label
-              >Unit
-              <select name="walletType"><option>points</option><option>cash</option></select>
-            </label>
-            <button class="btn btn-primary">Create</button>
-          </form>
-        </details>
+        <div class="panel-head">
+          <div>
+            <h3 class="section-label">Customers</h3>
+          </div>
+        </div>
+        <div id="customer-table"></div>
+        <div id="customer-pagination" class="pagination hidden">
+          <button id="customer-prev" class="btn btn-sm" disabled>← Prev</button>
+          <span id="customer-page-info" class="pagination-info">Page 1</span>
+          <button id="customer-next" class="btn btn-sm" disabled>Next →</button>
+        </div>
       </section>
 
-      <!-- ── Customer ───────────────────────────────────────────────── -->
+      <!-- ── Customer detail ──────────────────────────────────────────── -->
       <section id="tab-customer" class="panel">
-        <!-- ── browse: every customer of this owner ────────────────── -->
-        <div id="customer-browse">
-          <div class="panel-head">
-            <div>
-              <h2>Customers</h2>
-              <p class="muted">
-                Every customer with a wallet under this owner. Pick one to see their
-                balance, grant or revoke, and full transaction history.
-              </p>
-            </div>
-          </div>
-
-          <form id="customer-lookup" class="row">
-            <label>Owner type
-              <select name="ownerType"><option>shop</option><option>merchant</option></select>
-            </label>
-            <label id="customer-owner-field">Shop<input name="ownerId" value="S1" required /></label>
-            <button class="btn">Load customers</button>
-          </form>
-
-          <div id="customer-list" class="stack"></div>
+        <div class="panel-head" style="display:flex;align-items:center;gap:14px;">
+          <button id="customer-back" class="btn btn-sm">← Back</button>
+          <h3 id="customer-detail-title" class="section-label" style="margin:0"></h3>
         </div>
-
-        <!-- ── detail: one customer's wallets, actions, history ────── -->
-        <div id="customer-detail" class="hidden">
-          <button id="customer-back" class="btn btn-ghost btn-sm">← All customers</button>
-          <h3 id="customer-detail-title" class="section-label"></h3>
-
-          <div id="customer-wallets" class="stack"></div>
-
-          <div id="customer-actions" class="hidden">
-            <h3 class="section-label">Grant or revoke</h3>
-            <form id="grant-form" class="row">
-              <label>Wallet<select name="walletId" id="grant-wallet"></select></label>
-              <label>Amount (minor)<input name="amountMinor" type="number" min="1" value="1000" required /></label>
-              <label>Reason<input name="reason" placeholder="goodwill credit" required /></label>
-              <label>Actor<input name="actorId" value="dashboard" required /></label>
-              <label>Expiry <small>(grant only, optional)</small><input name="expiresAt" type="date" /></label>
-              <button class="btn btn-primary" value="grant" name="op">Grant</button>
-              <button class="btn btn-danger" value="revoke" name="op">Revoke</button>
-            </form>
-          </div>
-
-          <h3 class="section-label">History — selected wallet</h3>
-          <div id="customer-history-summary" class="stat-row"></div>
-          <div id="customer-history-list" class="stack"></div>
-          <button id="customer-history-load-more" class="btn hidden">Load more</button>
-        </div>
+        <div id="customer-detail-balance" class="stat-row"></div>
+        <div id="customer-detail-entries" class="stack"></div>
+        <button id="customer-detail-more" class="btn hidden" style="margin-top:12px">Load more</button>
       </section>
 
-      <!-- ── History ────────────────────────────────────────────────── -->
+      <!-- ── Ledger history ─────────────────────────────────────────── -->
       <section id="tab-history" class="panel">
-        <div class="panel-head">
-          <div>
-            <h2>Ledger history</h2>
-            <p class="muted">
-              Every entry for one wallet — a customer's or a treasury's. The ledger is
-              append-only, so this is the full record.
-            </p>
-          </div>
-        </div>
-
-        <form id="history-form" class="row">
-          <label class="grow">Wallet id<input name="walletId" placeholder="paste a wallet id" required /></label>
-          <button class="btn">Load</button>
-        </form>
-
         <div id="history-summary" class="stat-row"></div>
         <div id="history-list" class="stack"></div>
-        <button id="history-load-more" class="btn hidden">Load more</button>
       </section>
     </main>
 
@@ -155,44 +89,71 @@
       <form method="dialog" id="settings-form">
         <h2>Settings</h2>
 
-        <label class="field"
-          >Merchant id
-          <input name="merchantId" placeholder="M1" required />
-        </label>
-
-        <label class="field"
-          >chestbox base URL
-          <input name="baseUrl" placeholder="http://localhost:3000" />
-        </label>
-
-        <label class="field"
-          >Admin API key
-          <input name="adminKey" type="password" placeholder="SUPER_USER_KEY" />
-        </label>
-
-        <label class="check">
-          <input type="checkbox" name="live" /> Live mode — call a real chestbox
-        </label>
-
         <label class="check">
           <input type="checkbox" name="proxy" /> Route through <code>/api/chestbox</code>
         </label>
 
-        <p class="note">
-          <strong>Proxy on</strong> (deployed): calls go through the Vercel function, which
-          holds the key as a server env var. Nothing sensitive reaches the browser, and
-          there is no CORS problem. Base URL and key below are ignored.<br /><br />
-          <strong>Proxy off</strong> (local dev): the page calls chestbox directly. That
-          needs a CORS layer on chestbox, and the key is kept in
-          <code>sessionStorage</code> where anyone with this browser can read it — use a
-          throwaway key, never a production one.
-        </p>
+        <label class="field"
+          >chestbox base URL <small>(direct mode only)</small>
+          <input name="baseUrl" placeholder="http://localhost:3000" />
+        </label>
 
-        <div id="impl-status" class="impl"></div>
+        <label class="field"
+          >Admin API key <small>(direct mode only)</small>
+          <input name="adminKey" type="password" placeholder="SUPER_USER_KEY" />
+        </label>
+
+        <p class="note">
+          <strong>Proxy on</strong>: calls go through <code>dev-server.mjs</code> locally or the
+          Vercel function when deployed, which holds the key as a server env var. Nothing
+          sensitive reaches the browser and there is no CORS problem — the two fields above are
+          ignored.<br /><br />
+          <strong>Proxy off</strong>: the page calls chestbox directly. That needs a CORS layer
+          on chestbox, and the key sits in <code>sessionStorage</code> where anyone with this
+          browser can read it — use a throwaway key, never a production one.
+        </p>
 
         <div class="dialog-actions">
           <button value="cancel" class="btn btn-ghost">Cancel</button>
           <button value="save" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- ── Create wallet dialog ──────────────────────────────────────── -->
+    <dialog id="create-wallet-dialog">
+      <form method="dialog" id="wallet-create">
+        <h2>Create treasury</h2>
+        <div class="field">
+          Campaign
+          <input name="campaignId" placeholder="diwali-2026" required />
+        </div>
+        <div class="field">
+          Amount (minor units)
+          <input name="amount" type="number" min="1" placeholder="100000" required />
+        </div>
+        <div class="dialog-actions">
+          <button value="cancel" class="btn btn-ghost" formnovalidate>Cancel</button>
+          <button id="wallet-create-submit" value="create" class="btn btn-primary">Create</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- ── Treasury credit dialog ───────────────────────────────────── -->
+    <dialog id="treasury-credit-dialog">
+      <form method="dialog" id="treasury-credit-form">
+        <h2>Credit treasury</h2>
+        <div class="field">
+          Amount (minor units)
+          <input name="amount" type="number" min="1" placeholder="100000" required />
+        </div>
+        <div class="field">
+          Active from
+          <input name="activeAt" type="datetime-local" required />
+        </div>
+        <div class="dialog-actions">
+          <button value="cancel" class="btn btn-ghost" formnovalidate>Cancel</button>
+          <button value="credit" class="btn btn-primary">Credit</button>
         </div>
       </form>
     </dialog>

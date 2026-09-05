@@ -4,9 +4,8 @@
 
 const KEY_BASE_URL = "chestboard.baseUrl";
 const KEY_ADMIN_KEY = "chestboard.adminKey";
-const KEY_LIVE = "chestboard.live";
 const KEY_PROXY = "chestboard.proxy";
-const KEY_MERCHANT_ID = "chestboard.merchantId";
+const KEY_BOOK = "chestboard.walletBook";
 
 function read(key, fallback) {
   try {
@@ -40,41 +39,40 @@ export const config = {
     write(KEY_ADMIN_KEY, v);
   },
 
-  // Live mode talks to a running chestbox. Off by default so the page is
-  // useful standalone (e.g. on Vercel) with no backend reachable.
-  get live() {
-    return read(KEY_LIVE, "false") === "true";
-  },
-  set live(v) {
-    write(KEY_LIVE, v ? "true" : "false");
-  },
-
-  // Proxy mode routes through /api/chestbox (the Vercel function), which holds
-  // the admin key server-side and sidesteps CORS. Direct mode calls chestbox
-  // from the browser, which needs a CORS layer on chestbox and puts the key in
-  // client JS — only sensible for local development.
+  // Proxy mode routes through /api/chestbox (the Vercel function, or
+  // dev-server.mjs locally), which holds the admin key server-side and sidesteps
+  // CORS. Direct mode calls chestbox from the browser, which needs a CORS layer
+  // on chestbox and puts the key in client JS — only sensible for local work.
   get proxy() {
     return read(KEY_PROXY, "true") === "true";
   },
   set proxy(v) {
     write(KEY_PROXY, v ? "true" : "false");
   },
-
-  // This board is scoped to one merchant — like lighthouse, which never asks
-  // the merchant to type their own id. Set once in Settings, used everywhere
-  // a form used to have its own "Merchant" field.
-  get merchantId() {
-    return read(KEY_MERCHANT_ID, "M1");
-  },
-  set merchantId(v) {
-    write(KEY_MERCHANT_ID, v);
-  },
 };
 
-// Which parts of the API exist today. Flip to true as each ships; api.js falls
-// back to stubs for anything still false, even in live mode.
-export const IMPLEMENTED = {
-  wallets: true, // POST/GET/PATCH/DELETE /wallets              — shipped
-  ledger: true, // /ledger/{balance,entries,expired,...}         — shipped
-  earn: true, // POST /earn — shipped, not called from this UI yet
+// The board still pins the wallets created or looked up in this tab: GET /wallets
+// lists an entity's CUSTOMER wallets only, so entity-level rows and treasuries
+// have no listing and this is the only way to keep one on screen. A local
+// convenience, never a source of truth: every card is re-fetched before shown.
+export const book = {
+  all() {
+    try {
+      return JSON.parse(read(KEY_BOOK, "[]"));
+    } catch {
+      return [];
+    }
+  },
+  add(id) {
+    if (!id) return;
+    const ids = book.all().filter((x) => x !== id);
+    ids.unshift(id);
+    write(KEY_BOOK, JSON.stringify(ids.slice(0, 50)));
+  },
+  remove(id) {
+    write(KEY_BOOK, JSON.stringify(book.all().filter((x) => x !== id)));
+  },
+  clear() {
+    write(KEY_BOOK, "[]");
+  },
 };

@@ -1,12 +1,22 @@
 // Every call to chestbox goes through here.
 //
-// The single swap point: each function checks whether its endpoint is live
-// (config.live AND IMPLEMENTED.<area>) and either issues a real fetch or returns
-// a stub. Plugging in a newly-shipped endpoint means flipping one flag in
-// config.js — no component changes.
+// This file mirrors chestbox's router exactly — 11 endpoints, nothing more.
+// If a function does not exist here, chestbox does not serve it.
+//
+//   GET  /health                          health()
+//   GET  /health/database                 databaseHealth()
+//   POST /wallets                         createWallet()
+//   GET  /wallets                         listWallets()
+//   GET  /wallets/{id}                    getWallet()
+//   POST /wallets/{id}/freeze             setStatus(id, "frozen")
+//   POST /wallets/{id}/close              setStatus(id, "closed")
+//   POST /wallets/{id}/activate           setStatus(id, "active")
+//   POST /ledger/balance/credit           credit()
+//   POST /ledger/balance/debit            debit()
+//   GET  /ledger/balance/{walletId}       getBalance()
+//   GET  /ledger/entries                  listEntries()
 
-import { config, IMPLEMENTED } from "./config.js";
-import { stubs } from "./stubs.js";
+import { config } from "./config.js";
 
 export class ApiError extends Error {
   constructor(message, status, body) {
@@ -15,8 +25,6 @@ export class ApiError extends Error {
     this.body = body;
   }
 }
-
-const isLive = (area) => config.live && IMPLEMENTED[area];
 
 async function request(method, path, body) {
   // In proxy mode the serverless function supplies the key; the browser never
@@ -38,7 +46,7 @@ async function request(method, path, body) {
     // deliberately doesn't tell us which.
     const where = config.proxy ? "/api/chestbox" : config.baseUrl;
     const hint = config.proxy
-      ? "is the proxy deployed and CHESTBOX_URL set?"
+      ? "is the proxy running and CHESTBOX_URL set?"
       : "server down, or chestbox has no CORS layer";
     throw new ApiError(`Cannot reach ${where} — ${hint} (${e.message})`, 0, null);
   });
@@ -58,7 +66,9 @@ async function request(method, path, body) {
       res.statusText;
     throw new ApiError(msg, res.status, parsed);
   }
-  return parsed;
+  // Status is surfaced so the UI can distinguish 201 (created) from 200
+  // (idempotent replay) — the whole point of the idempotency key.
+  return { data: parsed, status: res.status };
 }
 
 const qs = (params) => {
@@ -70,107 +80,60 @@ const qs = (params) => {
   return s ? `?${s}` : "";
 };
 
+const body = (r) => r.data;
+
 export const api = {
-  // ---- wallets & treasuries: shipped ----
+  // ---- health ----
 
-  listWallets(filters = {}) {
-    if (!isLive("wallets")) return Promise.resolve([]);
-    return request("GET", `/wallets${qs(filters)}`);
-  },
+  health: () => request("GET", "/health").then(body),
+  databaseHealth: () => request("GET", "/health/database").then(body),
 
-  getWallet(id) {
-    if (!isLive("wallets")) return Promise.resolve(null);
-    return request("GET", `/wallets/${encodeURIComponent(id)}`);
-  },
+  // ---- wallets ----
 
-  createWallet(payload) {
-    if (!isLive("wallets")) {
-      return Promise.reject(
-        new ApiError("Live mode is off — enable it in Settings", 0, null),
-      );
-    }
-    return request("POST", "/wallets", payload);
-  },
+  // chestbox upserts on (entityType, entityId, customerId?, currency, walletType),
+  // so calling this twice with the same identity returns the original wallet
+  // rather than creating a second one.
+  createWallet: (payload) => request("POST", "/wallets", payload).then(body),
 
-  reorderPriorities(ownerId, campaignId, order) {
-    if (!isLive("wallets")) {
-      return Promise.reject(
-        new ApiError("Live mode is off — enable it in Settings", 0, null),
-      );
-    }
-    return request("PATCH", "/wallets/priority", { ownerId, campaignId, order });
-  },
+  // entityId scopes to that entity's CUSTOMER wallets — entity-level rows and
+  // treasuries are excluded, so this is exactly the customer list the board
+  // wants. Treasuries come back via campaignId instead. Default limit is 50,
+  // max 200; before+beforeId are keyset pagination, both or neither.
+  listWallets: ({ entityType, entityId, customerId, campaignId, includeDeleted, limit, before, beforeId } = {}) =>
+    request(
+      "GET",
+      `/wallets${qs({ entityType, entityId, customerId, campaignId, includeDeleted, limit, before, beforeId })}`,
+    ).then(body),
 
-  deleteWallet(id) {
-    if (!isLive("wallets")) {
-      return Promise.reject(
-        new ApiError("Live mode is off — enable it in Settings", 0, null),
-      );
-    }
-    return request("DELETE", `/wallets/${encodeURIComponent(id)}`);
-  },
+  getWallet: (id) => request("GET", `/wallets/${encodeURIComponent(id)}`).then(body),
 
   setStatus(id, status) {
-    if (!isLive("wallets")) {
-      return Promise.reject(
-        new ApiError("Live mode is off — enable it in Settings", 0, null),
-      );
-    }
     const action = { active: "activate", frozen: "freeze", closed: "close" }[status];
-    return request("POST", `/wallets/${encodeURIComponent(id)}/${action}`);
+    if (!action) throw new ApiError(`Unknown status ${status}`, 0, null);
+    return request("POST", `/wallets/${encodeURIComponent(id)}/${action}`).then(body);
   },
 
-  // ---- ledger: in review, stubbed until IMPLEMENTED.ledger flips ----
+  // ---- ledger ----
 
-  getBalance(walletId) {
-    if (!isLive("ledger")) return Promise.resolve(stubs.getBalance(walletId));
-    return request("GET", `/ledger/balance/${encodeURIComponent(walletId)}`);
-  },
+  // availableMinor counts every unexpired credit; redeemableMinor counts only
+  // those already past their activeAt. A future-dated grant shows in the first
+  // and not the second.
+  getBalance: (walletId) =>
+    request("GET", `/ledger/balance/${encodeURIComponent(walletId)}`).then(body),
 
-  // limit/before/beforeId drive keyset pagination — before/beforeId are the
-  // (createdAt, groupId) of the last row already shown, from the previous
-  // page's last entry. Omit both for the first page.
-  listEntries(walletId, { limit, before, beforeId } = {}) {
-    if (!isLive("ledger")) return Promise.resolve(stubs.listEntries(walletId));
-    return request("GET", `/ledger/entries${qs({ walletId, limit, before, beforeId })}`);
-  },
+  // Exactly one of walletId / campaignId. before+beforeId are the (createdAt,
+  // id) of the last row already shown — keyset pagination, both or neither.
+  listEntries: ({ walletId, campaignId, limit, before, beforeId } = {}) =>
+    request("GET", `/ledger/entries${qs({ walletId, campaignId, limit, before, beforeId })}`).then(
+      body,
+    ),
 
-  getExpired(walletId) {
-    if (!isLive("ledger")) return Promise.resolve(stubs.getExpired(walletId));
-    return request("GET", `/ledger/expired${qs({ walletId })}`);
-  },
+  // activeAt is required on a credit; expiresAt is optional (omit = never
+  // expires) but must be after activeAt. Returns {data, status} so the caller
+  // can tell a fresh 201 from a 200 replay.
+  credit: (payload) => request("POST", "/ledger/balance/credit", payload),
 
-  // expiresAt is optional — omit it for points that never expire, or pass an
-  // ISO string for a fixed expiry date.
-  grant({ walletId, amountMinor, sourceType, actorId, reason, idempotencyKey, expiresAt }) {
-    if (!isLive("ledger")) {
-      return Promise.resolve(stubs.credit(walletId, amountMinor, sourceType, reason));
-    }
-    return request("POST", "/ledger/balance/credit", {
-      walletId,
-      amountMinor,
-      sourceType,
-      actorId,
-      reason,
-      idempotencyKey,
-      activeAt: new Date().toISOString(),
-      expiresAt: expiresAt || undefined,
-    });
-  },
-
-  revoke({ walletId, amountMinor, sourceType, actorId, reason, idempotencyKey }) {
-    if (!isLive("ledger")) {
-      return Promise.resolve(stubs.debit(walletId, amountMinor, sourceType, reason));
-    }
-    return request("POST", "/ledger/balance/debit", {
-      walletId,
-      amountMinor,
-      sourceType,
-      actorId,
-      reason,
-      idempotencyKey,
-    });
-  },
+  // activeAt/expiresAt are rejected on a debit — the service derives each debit
+  // row's expiry from the credit lot it draws from.
+  debit: (payload) => request("POST", "/ledger/balance/debit", payload),
 };
-
-export const usingStubs = (area) => !isLive(area);
