@@ -23,11 +23,14 @@ export default async function handler(req, res) {
   }
 
   const segments = [].concat(req.query.path ?? []);
-  // Only forward the query string, never a caller-supplied host.
-  const search = req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : "";
+  // req.query carries the caller's params plus Vercel's own `path` capture —
+  // forwarding `path` too would corrupt the upstream query string.
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(req.query)) {
+    if (k !== "path") params.set(k, v);
+  }
+  const search = params.toString() ? `?${params}` : "";
   const target = `${base.replace(/\/$/, "")}/${segments.join("/")}${search}`;
-
-  console.log("[proxy] target:", target);
 
   try {
     const upstream = await fetch(target, {
@@ -35,6 +38,8 @@ export default async function handler(req, res) {
       headers: {
         "Content-Type": "application/json",
         "x-admin-api-key": key,
+        // ngrok free tier serves an HTML interstitial without this
+        "ngrok-skip-browser-warning": "true",
       },
       body: ["GET", "HEAD"].includes(req.method) ? undefined : JSON.stringify(req.body ?? {}),
     });
