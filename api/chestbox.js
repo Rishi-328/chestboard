@@ -22,14 +22,16 @@ export default async function handler(req, res) {
       .json({ error: "proxy_unconfigured", message: "Set CHESTBOX_URL and CHESTBOX_ADMIN_KEY" });
   }
 
-  // Derive the upstream path from req.url rather than req.query.path — the
-  // route capture is not reliably populated, and req.url also carries Vercel's
-  // own injected `path` param, which must not be forwarded upstream.
+  // The vercel.json rewrite hands the sub-path over as `path`, because the
+  // rewritten pathname no longer carries it. Fall back to the pathname so this
+  // still works when the function is hit directly. Either way `path` is
+  // Vercel's own plumbing and must never be forwarded upstream.
   const incoming = new URL(req.url, "http://localhost");
-  const path = incoming.pathname.replace(/^\/api\/chestbox/, "");
+  const captured = incoming.searchParams.getAll("path").join("/");
+  const sub = (captured || incoming.pathname.replace(/^\/api\/chestbox/, "")).replace(/^\/+/, "");
   incoming.searchParams.delete("path");
   const search = incoming.searchParams.toString();
-  const target = `${base.replace(/\/$/, "")}${path}${search ? `?${search}` : ""}`;
+  const target = `${base.replace(/\/$/, "")}/${sub}${search ? `?${search}` : ""}`;
 
   try {
     const upstream = await fetch(target, {

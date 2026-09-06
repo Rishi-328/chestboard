@@ -1,5 +1,8 @@
 {
   "cleanUrls": true,
+  "rewrites": [
+    { "source": "/api/chestbox/:path*", "destination": "/api/chestbox?path=:path*" }
+  ],
   "headers": [
     {
       "source": "/(.*)",
