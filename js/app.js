@@ -410,6 +410,15 @@ async function runBulk(direction) {
     const results = await Promise.allSettled(customers.map(async (cw) => {
       const key = `${runId}-${cw.id}`;
       if (direction === "credit") {
+        // Debit treasury first — if this fails the customer never gets credited.
+        await api.debit({
+          walletId: treasuryWalletId,
+          amountMinor: amount,
+          sourceType: "manual",
+          idempotencyKey: `debit-treasury-${key}`,
+          actorId: "dashboard",
+          reason: runId,
+        });
         await api.credit({
           walletId: cw.id,
           amountMinor: amount,
@@ -420,15 +429,8 @@ async function runBulk(direction) {
           ruleId: batchTag,
           activeAt,
         });
-        await api.debit({
-          walletId: treasuryWalletId,
-          amountMinor: amount,
-          sourceType: "manual",
-          idempotencyKey: `debit-treasury-${key}`,
-          actorId: "dashboard",
-          reason: runId,
-        });
       } else {
+        // Debit customer first — if this fails the treasury is untouched.
         await api.debit({
           walletId: cw.id,
           amountMinor: amount,
